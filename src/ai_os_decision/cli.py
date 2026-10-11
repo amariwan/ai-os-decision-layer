@@ -46,6 +46,14 @@ def main() -> int:
     task.add_argument("--model-dir", help="existing trusted local RLAgent checkpoint directory")
     task.add_argument("--timeout-ms", type=int, help="hard local inference deadline (10..600000 ms)")
     task.add_argument("--require-laya", action="store_true", help="exit 3 if Laya cannot return an observation")
+    from ai_os_decision.recommendation_validation import PROFILES
+    recommendation = sub.add_parser('recommend', help='local Laya profile recommendation; never execute actions')
+    recommendation.add_argument('profile', choices=PROFILES)
+    recommendation.add_argument('request', help='bounded local JSON request file')
+    recommendation.add_argument('--config')
+    recommendation.add_argument('--model-dir')
+    recommendation.add_argument('--timeout-ms', type=int)
+    recommendation.add_argument('--require-laya', action='store_true')
     system_one = sub.add_parser("system-one", help="explicit recommendation-only shadow prototype")
     system_one.add_argument("request", help="trusted local request JSON; never a model-generated inventory")
     system_one.add_argument("--backend", choices=["deterministic", "qwen", "d1", "freellm"], default="deterministic")
@@ -63,6 +71,24 @@ def main() -> int:
     if args.command == "system-one":
         from ai_os_decision.system_one_io import run_cli
         return run_cli(args)
+    if args.command == 'recommend':
+        from ai_os_decision.recommendation_validation import load_request
+        from ai_os_decision.recommendations import empty_result, recommend
+        try:
+            request = load_request(args.request)
+        except (OSError, ValueError, TypeError, RecursionError):
+            print(json.dumps(empty_result(args.profile, 'invalid_request')))
+            return 2
+        try:
+            runtime = _runtime(args.config, args.model_dir, args.timeout_ms, require_policy=True)
+        except (OSError, ValueError, TypeError, OverflowError):
+            print(json.dumps(empty_result(args.profile, 'invalid_config')))
+            return 2
+        result = recommend(args.profile, request, runtime)
+        print(json.dumps(result, indent=2, allow_nan=False))
+        if result['status'] != 'ready':
+            return 2
+        return 3 if args.require_laya and result['laya']['status'] not in ('ok', 'not_required') else 0
     if args.command == "task":
         from ai_os_decision.task_entry import prepare_task
         if args.timeout_ms is not None and not 10 <= args.timeout_ms <= 600000:

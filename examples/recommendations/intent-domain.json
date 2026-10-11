@@ -1,0 +1,1 @@
+{"schema":"ai-os-recommendation-request/v1","text":"Review Python code and tests.","environment":"dev","context":{"intents":{"coding":"write or review code","unknown":"other"},"domains":{"software":"software engineering","unknown":"other"}}}

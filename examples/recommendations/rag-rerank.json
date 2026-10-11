@@ -1,0 +1,1 @@
+{"schema":"ai-os-recommendation-request/v1","text":"Rank these sources by relevance.","environment":"dev","context":{"query":"Python tests","candidates":[{"id":"a","source":"example:a","excerpt":"Python pytest tests"},{"id":"b","source":"example:b","excerpt":"Cooking recipes"}]}}
