@@ -1,0 +1,1 @@
+{"schema":"ai-os-recommendation-request/v1","text":"Choose a local model for a Python code review.","environment":"dev","context":{"candidates":[{"id":"small","available":true,"local":true,"capable":true,"estimated_cost":0},{"id":"large","available":true,"local":true,"capable":true,"estimated_cost":0}],"local_only":true,"budget":0}}

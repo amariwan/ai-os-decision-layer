@@ -3,7 +3,7 @@
 Data flow to cloud (FreeLLMBackend only):
   BoundedRequest -> sanitize_cloud_payload() [allowlist] -> validate_cloud_payload()
   [final serialized check] -> run_worker() [bounded subprocess] -> cloud_json()
-  [loopback-only transport, key from environment].
+    [loopback-only transport, key from environment or macOS Keychain].
 Unlisted state/extra/metadata never leaves the process; rejected payloads
 raise before any transport call (zero transport calls on reject).
 """
@@ -214,9 +214,8 @@ class FreeLLMBackend:
                    and c.source.startswith("freellm:") for c in inventory.capabilities):
             raise ValueError("cloud model must be a discovered available FreeLLMAPI model")
         base = (base_url or os.environ.get("FREELLMAPI_BASE_URL", "http://127.0.0.1:31415")).rstrip("/")
-        from urllib.parse import urlparse
-        if urlparse(base).scheme != "http" or urlparse(base).hostname not in ("127.0.0.1", "localhost"):
-            raise ValueError("cloud gateway must be a loopback URL")
+        from ai_os_decision.gateway_credentials import normalize_gateway_url
+        base = normalize_gateway_url(base)
         self.model, self.base_url = model, base
         self.json_mode, self.quota = bool(json_mode), quota
         self.enabled, self.approved, self.timeout = enabled, approved, timeout

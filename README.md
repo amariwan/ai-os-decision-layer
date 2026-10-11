@@ -3,9 +3,14 @@
 [![CI](https://github.com/amariwan/ai-os-decision-layer/actions/workflows/ci.yml/badge.svg)](https://github.com/amariwan/ai-os-decision-layer/actions/workflows/ci.yml)
 
 Deterministic-first local decision host with optional model backends in
-**shadow/advisory mode only**. The deterministic rule baseline is authoritative:
+**shadow/advisory mode only**. For task routing, the deterministic rule baseline is authoritative:
 no model recommendation can change a route, execute tools, weaken policy, or
 block a request.
+
+Six local recommendation profiles cover model routing, tool risk, intent/domain,
+loop decisions, RAG reranking and guardrails through `ai-os recommend`.
+Profiles may flag review, while hard policy and execution limits remain binding.
+See [usage, examples and observed model-quality limits](docs/laya-profiles.md).
 
 The same host includes a static n8n Workflow Library: source registry, SHA-256
 deduplication with provenance, conservative security/dependency metadata,
@@ -163,6 +168,10 @@ this CLI does not claim a Brain connection from configuration alone.
   memory code is included that transmits credentials.
 
 ## Known limitations
+
+Automatic model selection through local Laya and the existing gateway is
+available via `system-one --backend freellm --model auto`.
+See [AUTO setup, boundaries and live verification](docs/auto-model-routing.md).
 
 - The 30-case system-one corpus and 12-case provider-intel set are synthetic
   and tiny: not proof of task completion, calibration, precision/recall,

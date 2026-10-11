@@ -112,7 +112,37 @@ claimed: free tier is quota-bound (429s measured), not unlimited.
 6. To deactivate: `enabled: false` (default) — cloud path then refuses without
    code changes. d1 remains separately gated (`--approve-d1`).
 
-## 6. Known limits
+## 7. AUTO / AUTO_FREE (2026-10-11, fixed + added)
+
+- **Bug:** `select_model()` accepted every `available:true` row. The gateway
+  advertises router slots (`claude-*`, no `execution_status`) as available
+  but rejects them at inference (`404 model_not_found`, "use `auto`").
+  Laya picked `claude-haiku-4-5` → inference failed → deterministic fallback.
+- **Fix:** candidates require `execution_status == "ready"` (the gateway's
+  own readiness signal, cf. `needsKey` above). Verified live: slots gone
+  from shortlist, Laya chose `dots3-note-preview` from 4 ready models.
+- **Failover:** `--model auto` tries the ordered shortlist (Laya choice
+  first, max 4) via one `observe()` per candidate and keeps the first
+  working backend. Per-candidate `cloud_eligible` quota check; stop on
+  `quota-cooldown`. Attempts logged in `model_routing.attempts`
+  (`[{model, error}]`, IDs + error types only). Live: 2× `RuntimeError`
+  (throttled tier) then clean stop on cooldown — no retry storm.
+- **AUTO_FREE** (`--model auto-free`): same candidates, plus a response-side
+  cost gate. Rows expose no pricing, so free is verified from observed
+  `usage`: `cost == 0`, `is_byok == false`, `upstream_inference_cost == 0`
+  (worker passes these through as `measurement.cost/upstream_cost/is_byok`;
+  allowlisted in `SystemOneRuntime.decide`). Missing cost evidence fails
+  closed (`non_free_cost`, next candidate; none free → `no_free_model`,
+  exit 2). No config change needed; same `allow_auto_calls` authorization.
+  Live-verified: `dots3-note-preview`, first attempt ok,
+  `measurement {cost: 0, upstream_cost: 0, is_byok: false}`.
+- Laya advised `gateway-auto-only`; rejected with reason: user requires a
+  Laya choice from filtered models plus an auditable free-only mode, and
+  the `auto` slot is opaque (no per-model attribution). Status-filter uses
+  existing gateway evidence with zero extra calls (probing rejected:
+  429 after ~2 rapid requests).
+
+## 8. Known limits
 
 - Availability churn: 27/222 today; models can go `needsKey` at any time —
   always discover live, never hardcode.

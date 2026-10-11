@@ -1,0 +1,13 @@
+{
+  "state": {"text": "Choose a tool for inspecting a local source file.", "environment": "dev"},
+  "questions": [{"id": "tool", "kind": "choice", "instructions": "Choose a suitable inspection tool.",
+                 "options": {"terminal": "Read the local file", "atlas": "Navigate indexed code"}}],
+  "fallback_answers": {"tool": "terminal"},
+  "inventory": {"capabilities": [
+    {"id": "terminal", "kind": "tool", "source": "client-exposed"},
+    {"id": "atlas", "kind": "tool", "source": "client-exposed"}
+  ]},
+  "candidate_kinds": {"tool": "tool"},
+  "action": "read",
+  "minimum_risk": "low"
+}

@@ -405,12 +405,13 @@ def test_cloud_json_error_mapping(monkeypatch):
     monkeypatch.setitem(os.environ, "FREELLMAPI_KEY", "test-key")
     def fail(req, timeout=None):
         raise urllib.error.HTTPError(req.full_url, 429, "slow", {"Retry-After": "74"}, None)
-    monkeypatch.setattr(w.urllib.request, "urlopen", fail)
+    monkeypatch.setattr(w, "_gateway_open", fail)
     parsed, _ = w.cloud_json("http://127.0.0.1:31415", "/v1/chat/completions", {}, 5)
     assert parsed == {"transport_error": {"type": "rate_limited", "retry_after": 74.0}}
 
 
 def test_cloud_json_missing_key_never_raises_with_material(monkeypatch):
+    monkeypatch.setattr('ai_os_decision.gateway_credentials._keychain', lambda: None)
     from ai_os_decision import system_one_worker as w
     monkeypatch.delenv("FREELLMAPI_KEY", raising=False)
     parsed, _ = w.cloud_json("http://127.0.0.1:31415", "/v1/models", None, 5)

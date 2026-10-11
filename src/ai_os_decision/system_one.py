@@ -444,11 +444,14 @@ class SystemOneRuntime:
                 raw = self.backend.infer(req)
                 answers, usage = validate_native(req, raw)
                 for name, value in raw.get("measurement", {}).items():
-                    if name in {"load_ms", "warm_ms", "mps_allocated_bytes", "mps_driver_bytes", "rss_bytes", "cpu_seconds"}:
+                    if name in {"load_ms", "warm_ms", "mps_allocated_bytes", "mps_driver_bytes", "rss_bytes", "cpu_seconds",
+                                "cost", "upstream_cost"}:
                         if value is not None and _number(value) < 0:
                             raise ValueError("invalid measurement")
                         measurement[name] = value
                     elif name == "device" and value in {"mps", "cpu", "cuda"}:
+                        measurement[name] = value
+                    elif name == "is_byok" and type(value) is bool:
                         measurement[name] = value
                 if source == "liquid-d1" and usage["output_tokens"] != 0:
                     raise ValueError("d1 must use native decisions")

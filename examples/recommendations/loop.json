@@ -1,0 +1,1 @@
+{"schema":"ai-os-recommendation-request/v1","text":"Choose the next step after editing Python code.","environment":"dev","context":{"iteration":1,"max_iterations":3,"elapsed_seconds":5,"timeout_seconds":60,"cost":0,"budget":1,"goal_complete":false,"verification_pending":false}}

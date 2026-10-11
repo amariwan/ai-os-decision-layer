@@ -1,0 +1,124 @@
+[
+  {
+    "profile": "model-routing",
+    "exit_code": 0,
+    "status": "ready",
+    "laya": {
+      "attempted": true,
+      "status": "ok",
+      "fallback_used": false,
+      "latency_ms": 20572.59,
+      "error": null,
+      "observation": {
+        "model": "small"
+      }
+    },
+    "recommendation": {
+      "model": "small"
+    }
+  },
+  {
+    "profile": "tool-risk",
+    "exit_code": 0,
+    "status": "ready",
+    "laya": {
+      "attempted": true,
+      "status": "ok",
+      "fallback_used": false,
+      "latency_ms": 19812.57,
+      "error": null,
+      "observation": {
+        "risk": "low"
+      }
+    },
+    "recommendation": {
+      "risk": "low"
+    }
+  },
+  {
+    "profile": "intent-domain",
+    "exit_code": 0,
+    "status": "ready",
+    "laya": {
+      "attempted": true,
+      "status": "ok",
+      "fallback_used": false,
+      "latency_ms": 20244.77,
+      "error": null,
+      "observation": {
+        "intent": "coding",
+        "domain": "software"
+      }
+    },
+    "recommendation": {
+      "intent": "coding",
+      "domain": "software"
+    }
+  },
+  {
+    "profile": "loop",
+    "exit_code": 0,
+    "status": "ready",
+    "laya": {
+      "attempted": true,
+      "status": "ok",
+      "fallback_used": false,
+      "latency_ms": 20227.02,
+      "error": null,
+      "observation": {
+        "next_step": "continue"
+      }
+    },
+    "recommendation": {
+      "next_step": "continue"
+    }
+  },
+  {
+    "profile": "rag-rerank",
+    "exit_code": 0,
+    "status": "ready",
+    "laya": {
+      "attempted": true,
+      "status": "ok",
+      "fallback_used": false,
+      "latency_ms": 19406.21,
+      "error": null,
+      "observation": {
+        "doc_0": 2.1788,
+        "doc_1": 2.3121
+      }
+    },
+    "recommendation": {
+      "ranking": [
+        {
+          "id": "b",
+          "source": "example:b",
+          "score": 2.3121
+        },
+        {
+          "id": "a",
+          "source": "example:a",
+          "score": 2.1788
+        }
+      ]
+    }
+  },
+  {
+    "profile": "guardrails",
+    "exit_code": 2,
+    "status": "review_required",
+    "laya": {
+      "attempted": true,
+      "status": "ok",
+      "fallback_used": false,
+      "latency_ms": 20089.25,
+      "error": null,
+      "observation": {
+        "guardrail": "suspicious"
+      }
+    },
+    "recommendation": {
+      "guardrail": "suspicious"
+    }
+  }
+]

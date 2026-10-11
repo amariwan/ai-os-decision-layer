@@ -1,0 +1,16 @@
+{
+  "profile": "rag-rerank",
+  "candidates": 16,
+  "excerpt_chars": 507,
+  "status": "ready",
+  "laya": {
+    "attempted": true,
+    "status": "context_too_large",
+    "fallback_used": true,
+    "latency_ms": 20352.09,
+    "error": "context_too_large",
+    "observation": {}
+  },
+  "ranking_count": 16,
+  "last_source_preserved": true
+}
