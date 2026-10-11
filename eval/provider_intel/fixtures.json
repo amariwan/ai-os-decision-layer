@@ -1,0 +1,122 @@
+[
+ {
+  "id": "PI-AGT-01",
+  "category": "agent",
+  "language": "en",
+  "request_path": "PI-AGT-01.json",
+  "expected": {
+   "skill": "/examples/skills/code-review/SKILL.md"
+  },
+  "cloud_ok": true
+ },
+ {
+  "id": "PI-AGT-02",
+  "category": "agent",
+  "language": "de",
+  "request_path": "PI-AGT-02.json",
+  "expected": {
+   "tool": "projectatlas"
+  },
+  "cloud_ok": true
+ },
+ {
+  "id": "PI-AGT-03",
+  "category": "agent",
+  "language": "en",
+  "request_path": "PI-AGT-03.json",
+  "expected": {
+   "complexity": "low"
+  },
+  "cloud_ok": true
+ },
+ {
+  "id": "PI-AGT-04",
+  "category": "agent",
+  "language": "en",
+  "request_path": "PI-AGT-04.json",
+  "expected": {
+   "risk": "critical"
+  },
+  "cloud_ok": true
+ },
+ {
+  "id": "PI-ENG-01",
+  "category": "engineering",
+  "language": "en",
+  "request_path": "PI-ENG-01.json",
+  "expected": {
+   "fix_vue_bug": "reproduce-first"
+  },
+  "cloud_ok": true
+ },
+ {
+  "id": "PI-ENG-02",
+  "category": "engineering",
+  "language": "de",
+  "request_path": "PI-ENG-02.json",
+  "expected": {
+   "ts_fix": "type-guard"
+  },
+  "cloud_ok": true
+ },
+ {
+  "id": "PI-ENG-03",
+  "category": "engineering",
+  "language": "en",
+  "request_path": "PI-ENG-03.json",
+  "expected": {
+   "api_fix": "pydantic-validator"
+  },
+  "cloud_ok": true
+ },
+ {
+  "id": "PI-ENG-04",
+  "category": "engineering",
+  "language": "de",
+  "request_path": "PI-ENG-04.json",
+  "expected": {
+   "arch_decision": "adr-schreiben"
+  },
+  "cloud_ok": true
+ },
+ {
+  "id": "PI-ENG-05",
+  "category": "engineering",
+  "language": "en",
+  "request_path": "PI-ENG-05.json",
+  "expected": {
+   "sec_change": "escalate-review"
+  },
+  "cloud_ok": true
+ },
+ {
+  "id": "PI-REL-01",
+  "category": "reliability",
+  "language": "en",
+  "request_path": "PI-REL-01.json",
+  "expected": {
+   "robust": "safe-default"
+  },
+  "cloud_ok": true
+ },
+ {
+  "id": "PI-REL-02",
+  "category": "reliability",
+  "language": "en",
+  "request_path": "PI-REL-02.json",
+  "expected": {
+   "cloud_ok": false
+  },
+  "cloud_ok": false
+ },
+ {
+  "id": "PI-REL-03",
+  "category": "reliability",
+  "language": "de",
+  "request_path": "PI-REL-03.json",
+  "expected": {
+   "next_step": "nachfragen"
+  },
+  "cloud_ok": true
+ }
+]

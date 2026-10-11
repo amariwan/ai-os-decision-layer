@@ -1,0 +1,24 @@
+{
+ "state": {
+  "text": "A FastAPI endpoint accepts negative quantities. Choose the validation fix.",
+  "environment": "dev"
+ },
+ "questions": [
+  {
+   "id": "api_fix",
+   "kind": "choice",
+   "instructions": "Choose the validation fix.",
+   "options": {
+    "pydantic-validator": "add a constrained field validator",
+    "try-except-everywhere": "wrap handlers in try/except",
+    "disable-validation": "turn off validation"
+   }
+  }
+ ],
+ "fallback_answers": {
+  "api_fix": "pydantic-validator"
+ },
+ "inventory": {
+  "capabilities": []
+ }
+}

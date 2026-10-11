@@ -1,0 +1,24 @@
+{
+ "state": {
+  "text": "Classify the complexity of adding one log line to a handler.",
+  "environment": "dev"
+ },
+ "questions": [
+  {
+   "id": "complexity",
+   "kind": "choice",
+   "instructions": "Classify complexity.",
+   "options": {
+    "low": "trivial",
+    "medium": "moderate",
+    "high": "complex"
+   }
+  }
+ ],
+ "fallback_answers": {
+  "complexity": "low"
+ },
+ "inventory": {
+  "capabilities": []
+ }
+}

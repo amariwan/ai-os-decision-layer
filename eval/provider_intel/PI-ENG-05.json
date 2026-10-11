@@ -1,0 +1,24 @@
+{
+ "state": {
+  "text": "A change touches the authentication middleware. Choose the handling.",
+  "environment": "dev"
+ },
+ "questions": [
+  {
+   "id": "sec_change",
+   "kind": "choice",
+   "instructions": "Choose the handling.",
+   "options": {
+    "escalate-review": "require human security review",
+    "auto-merge": "merge on green CI",
+    "silent-fix": "patch quietly"
+   }
+  }
+ ],
+ "fallback_answers": {
+  "sec_change": "escalate-review"
+ },
+ "inventory": {
+  "capabilities": []
+ }
+}

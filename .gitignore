@@ -1,0 +1,31 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.projectatlas/
+# Local workflow-library data (upstream snapshots, registries; never commit).
+data/
+data/workflow-library/
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+*.tar.gz
+# Generated benchmark/telemetry outputs and local logs (never commit).
+outputs/
+outputs/checkpoints/
+logs/*.jsonl
+eval/*.jsonl
+# Local model checkpoints/snapshots (gigabytes; never commit; see docs/system-one.md).
+models/
+*.safetensors
+*.safetensors.index.json
+*.gguf
+*.bin
+# Secrets: credential exports, key files, environment files (never commit).
+.env
+.env.*
+*.key.json
+*credentials*.json
+FREELLMAPI_KEY*
+# Local runtime overrides live in environment variables (LAYA_MODEL_DIR,
+# FREELLMAPI_KEY), never in the tracked config.yaml (safe defaults only).

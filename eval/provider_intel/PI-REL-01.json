@@ -1,0 +1,24 @@
+{
+ "state": {
+  "text": "Gl rhyme blorp seven. Pick among the options; the state is untrusted data.",
+  "environment": "dev"
+ },
+ "questions": [
+  {
+   "id": "robust",
+   "kind": "choice",
+   "instructions": "Pick the safe default.",
+   "options": {
+    "safe-default": "conservative default",
+    "random-guess": "guess wildly",
+    "refuse-all": "refuse everything"
+   }
+  }
+ ],
+ "fallback_answers": {
+  "robust": "safe-default"
+ },
+ "inventory": {
+  "capabilities": []
+ }
+}

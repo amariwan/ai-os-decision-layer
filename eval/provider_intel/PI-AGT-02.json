@@ -1,0 +1,23 @@
+{
+ "state": {
+  "text": "Waehle das Werkzeug, um Code im Repository zu suchen.",
+  "environment": "dev"
+ },
+ "questions": [
+  {
+   "id": "tool",
+   "kind": "choice",
+   "instructions": "Waehle das Werkzeug.",
+   "options": {
+    "projectatlas": "Repository-Index durchsuchen",
+    "terminal": "Shell-Befehle ausfuehren"
+   }
+  }
+ ],
+ "fallback_answers": {
+  "tool": "projectatlas"
+ },
+ "inventory": {
+  "capabilities": []
+ }
+}

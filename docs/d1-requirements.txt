@@ -1,0 +1,6 @@
+# Proposed isolated CPython 3.12 environment only. NOT installed.
+# Direct dependency pins verified on PyPI; complete transitive lock remains blocked on approval.
+transformers==5.14.1
+torch==2.14.1
+torchvision==0.29.1
+pillow==12.3.0

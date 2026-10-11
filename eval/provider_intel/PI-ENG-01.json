@@ -1,0 +1,24 @@
+{
+ "state": {
+  "text": "A Vue 3 component renders stale props after a parent update. Choose the first fix step.",
+  "environment": "dev"
+ },
+ "questions": [
+  {
+   "id": "fix_vue_bug",
+   "kind": "choice",
+   "instructions": "Choose the safest first fix step.",
+   "options": {
+    "reproduce-first": "write a failing reproduction",
+    "rewrite-component": "rewrite from scratch",
+    "bump-dependency": "upgrade Vue and hope"
+   }
+  }
+ ],
+ "fallback_answers": {
+  "fix_vue_bug": "reproduce-first"
+ },
+ "inventory": {
+  "capabilities": []
+ }
+}

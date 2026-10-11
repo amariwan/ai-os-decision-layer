@@ -1,0 +1,25 @@
+{
+ "state": {
+  "text": "Classify the risk of dropping a production table.",
+  "environment": "dev"
+ },
+ "questions": [
+  {
+   "id": "risk",
+   "kind": "choice",
+   "instructions": "Classify risk.",
+   "options": {
+    "low": "safe",
+    "medium": "needs care",
+    "high": "dangerous",
+    "critical": "irreversible harm"
+   }
+  }
+ ],
+ "fallback_answers": {
+  "risk": "critical"
+ },
+ "inventory": {
+  "capabilities": []
+ }
+}

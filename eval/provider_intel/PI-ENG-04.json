@@ -1,0 +1,24 @@
+{
+ "state": {
+  "text": "Wir muessen uns zwischen zwei Datenbanklayouts entscheiden. Waehle das Vorgehen.",
+  "environment": "dev"
+ },
+ "questions": [
+  {
+   "id": "arch_decision",
+   "kind": "choice",
+   "instructions": "Waehle das Vorgehen.",
+   "options": {
+    "adr-schreiben": "Entscheidung als ADR dokumentieren",
+    "sofort-migrieren": "sofort migrieren",
+    "nichts-tun": "nichts tun"
+   }
+  }
+ ],
+ "fallback_answers": {
+  "arch_decision": "adr-schreiben"
+ },
+ "inventory": {
+  "capabilities": []
+ }
+}

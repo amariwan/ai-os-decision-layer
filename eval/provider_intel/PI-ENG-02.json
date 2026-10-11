@@ -1,0 +1,24 @@
+{
+ "state": {
+  "text": "TypeScript meldet: Property fehlt im Typ. Waehle die typsichere Korrektur.",
+  "environment": "dev"
+ },
+ "questions": [
+  {
+   "id": "ts_fix",
+   "kind": "choice",
+   "instructions": "Waehle die typsichere Korrektur.",
+   "options": {
+    "type-guard": "eine Type-Guard-Funktion ergaenzen",
+    "any-cast": "auf any casten",
+    "ts-ignore": "Fehler mit ts-ignore unterdruecken"
+   }
+  }
+ ],
+ "fallback_answers": {
+  "ts_fix": "type-guard"
+ },
+ "inventory": {
+  "capabilities": []
+ }
+}

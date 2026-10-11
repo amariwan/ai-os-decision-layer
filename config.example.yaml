@@ -1,0 +1,64 @@
+# Example configuration — copy to config.yaml and adjust locally.
+# Safe defaults: everything cloud/adaptive is DISABLED; secrets live in
+# environment variables only (LAYA_MODEL_DIR, FREELLMAPI_KEY).
+
+decision_engine:
+  provider: laya  # laya | rule | llm-stub
+  # Thresholds are model SCORES, not calibrated probabilities (see README).
+  # Calibrate later on real shadow data before trusting them.
+  confidence:
+    auto_execute: 0.90
+    verify: 0.70
+  timeouts:
+    laya_ms: 2000
+
+policy:
+  version: "1.0.0"
+  # Hard denies win over every Laya/LLM recommendation.
+  deny_patterns:
+    - "delete production database"
+    - "drop production"
+    - "rm -rf /"
+    - "rm -rf /*"
+  approval_required:
+    - env: production
+      actions: [deploy, delete, drop, migrate]
+  fail_closed: true
+
+observability:
+  log_path: "logs/decisions.jsonl"
+  log_text: false  # never log raw user text / secrets
+
+shadow:
+  enabled: true
+  log_path: "logs/shadow.jsonl"
+
+laya:
+  # Local checkpoint directory (RLAgent layout). Prefer the LAYA_MODEL_DIR
+  # environment variable; this field overrides it when set. Null means
+  # "not configured" — the engine reports unavailable and the deterministic
+  # baseline continues unchanged. Never commit a private local path here.
+  model_dir: null
+  # Optional: "typed-decisions" subfolder checkpoint for domain-tuned decisions.
+  subfolder: null
+
+freellm:
+  # Cloud escalation is DISABLED by default. Enable only with explicit approval.
+  enabled: false
+  base_url: "http://127.0.0.1:31415"
+  # Private/secret-like content never leaves local execution unless true.
+  allow_private: false
+  # Empty means any discovered available model; otherwise a strict allowlist
+  # (one `- id` item per line, which is the list form the config loader parses).
+  allowed_models: []
+  # Bearer key is NEVER stored here: export FREELLMAPI_KEY in the environment.
+  quota:
+    max_failures: 3
+    cooldown: 300
+
+provider_intelligence:
+  # Adaptive routing is DISABLED by default. Evidence may be collected by the
+  # isolated benchmark workflow; production routing stays deterministic + local.
+  enabled: false
+  min_samples: 3
+  max_age_days: 30

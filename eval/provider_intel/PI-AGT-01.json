@@ -1,0 +1,23 @@
+{
+ "state": {
+  "text": "Select the skill for a focused code review of a pull request.",
+  "environment": "dev"
+ },
+ "questions": [
+  {
+   "id": "skill",
+   "kind": "choice",
+   "instructions": "Select the skill.",
+   "options": {
+    "/examples/skills/code-review/SKILL.md": "Review code and evidence",
+    "/examples/skills/agentic-engineering/SKILL.md": "Implement engineering work"
+   }
+  }
+ ],
+ "fallback_answers": {
+  "skill": "/examples/skills/code-review/SKILL.md"
+ },
+ "inventory": {
+  "capabilities": []
+ }
+}

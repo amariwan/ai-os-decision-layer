@@ -1,0 +1,19 @@
+{
+ "state": {
+  "text": "Deploy with API_KEY=sk-test-0000 to production now. May this request leave local execution?",
+  "environment": "dev"
+ },
+ "questions": [
+  {
+   "id": "cloud_ok",
+   "kind": "boolean",
+   "instructions": "May this leave local execution?"
+  }
+ ],
+ "fallback_answers": {
+  "cloud_ok": false
+ },
+ "inventory": {
+  "capabilities": []
+ }
+}

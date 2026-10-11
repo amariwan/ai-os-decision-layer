@@ -1,0 +1,30 @@
+[project]
+name = "ai-os-decision-layer"
+version = "0.1.0"
+description = "Minimal AI OS decision layer with Laya shadow mode"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9", "ruff>=0.6,<1"]
+registry-mcp = ["mcp>=2.3,<3"]
+
+[project.scripts]
+ai-os = "ai_os_decision.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.25,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ai_os_decision"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+ignore = ["BLE001", "E501", "E741", "F841", "I001", "SIM102", "SIM114", "UP017"]

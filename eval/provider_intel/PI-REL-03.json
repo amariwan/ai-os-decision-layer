@@ -1,0 +1,24 @@
+{
+ "state": {
+  "text": "Unklare Anfrage ohne Details. Waehle den naechsten Schritt.",
+  "environment": "dev"
+ },
+ "questions": [
+  {
+   "id": "next_step",
+   "kind": "choice",
+   "instructions": "Waehle den naechsten Schritt.",
+   "options": {
+    "nachfragen": "Verstaendnisfrage stellen",
+    "raten": "einfach raten",
+    "abbrechen": "abbrechen"
+   }
+  }
+ ],
+ "fallback_answers": {
+  "next_step": "nachfragen"
+ },
+ "inventory": {
+  "capabilities": []
+ }
+}
