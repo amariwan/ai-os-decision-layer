@@ -6,6 +6,7 @@ else raises so the caller can fall back. Never fail open: caller decides.
 from __future__ import annotations
 
 import os
+import math
 import sys
 import time
 import uuid
@@ -19,6 +20,50 @@ _LAYA_DIR = os.environ.get("LAYA_MODEL_DIR", "models/laya")
 
 class LayaUnavailable(Exception):
     pass
+
+
+class ContextWindowExceeded(Exception):
+    pass
+
+
+class ModelAnswerInvalid(ValueError):
+    pass
+
+
+def check_full_context(agent, state: dict, questions: dict) -> None:
+    """Use the checkpoint's own tokenizer/layout to reject silent state truncation."""
+    if not all(hasattr(agent, key) for key in ('tok', 'cfg', '_to_internal')):
+        raise ContextWindowExceeded('checkpoint cannot attest full context')
+    from rl_common import build_sequence, serialize_state
+    tok = agent.tok
+    tokens = tok(serialize_state(state).replace(tok.mask_token, ' '), add_special_tokens=False)['input_ids']
+    for question in questions.values():
+        # Empty serialized state contributes tokens too. Obtain the exact head
+        # length by subtracting those tokens from an untruncated empty sequence.
+        empty = tok(serialize_state({}).replace(tok.mask_token, ' '), add_special_tokens=False)['input_ids']
+        seq, _ = build_sequence(tok, {}, agent._to_internal(question), agent.cfg['max_len'], agent.cfg['head_max_len'])
+        head_length = len(seq) - len(empty)
+        if len(tokens) > agent.cfg['max_len'] - head_length:
+            raise ContextWindowExceeded('profile context exceeds checkpoint window')
+
+
+def _validate_profile_raw(raw: dict, questions: list[DecisionQuestion]) -> None:
+    answers = raw.get('answers')
+    if type(answers) is not dict or set(answers) != {q.id for q in questions}:
+        raise ValueError('invalid profile answers')
+    for q in questions:
+        answer = answers[q.id]
+        if type(answer) is not dict or answer.get('type') != {'boolean': 'noul'}.get(q.kind, q.kind):
+            raise ValueError('invalid profile answer type')
+        fields = [('confidence', 1)] if q.kind != 'boolean' else [('noul', 1)]
+        if q.kind == 'score':
+            fields.append(('score', len(q.criteria) - 1))
+        if q.kind == 'choice' and (type(answer.get('choice')) is not str or answer['choice'] not in q.options):
+            raise ValueError('invalid profile choice')
+        for key, maximum in fields:
+            value = answer.get(key)
+            if type(value) not in (int, float) or not math.isfinite(value) or not 0 <= value <= maximum:
+                raise ValueError('invalid profile numeric answer')
 
 
 def to_laya_questions(questions: list[DecisionQuestion]) -> dict:
@@ -85,10 +130,19 @@ class LayaDecisionEngine:
         t0 = time.perf_counter()
         lq = to_laya_questions(questions)
         agent = self._load()
+        wire_state = state.to_laya_state()
+        require_full = wire_state.pop('_require_full_context', False)
+        if require_full:
+            check_full_context(agent, wire_state, lq)
         try:
-            raw = agent.system_one(state.to_laya_state(), lq)
+            raw = agent.system_one(wire_state, lq)
         except Exception as e:
             raise LayaUnavailable(str(e))
+        if require_full:
+            try:
+                _validate_profile_raw(raw, questions)
+            except (ValueError, TypeError, OverflowError, AttributeError) as exc:
+                raise ModelAnswerInvalid('invalid profile answer') from exc
         answers = from_laya_answers(raw)
         if set(answers) != {q.id for q in questions}:
             raise LayaUnavailable("incomplete laya answers")
@@ -121,6 +175,10 @@ class IsolatedLayaDecisionEngine(LayaDecisionEngine):
         raw = run_worker(sys.executable, ["-m", "ai_os_decision.laya_worker"],
                          {"model_dir": str(Path(self.model_dir).resolve()), "state": asdict(state),
                           "questions": [asdict(q) for q in questions]}, self.timeout_ms / 1000)
+        if raw.get('error') == 'context_too_large':
+            raise ContextWindowExceeded('profile context exceeds checkpoint window')
+        if raw.get('error') == 'invalid_answer':
+            raise ModelAnswerInvalid('invalid profile answer')
         answers = {key: DecisionAnswer(**value) for key, value in raw.pop("answers").items()}
         if set(answers) != {q.id for q in questions}:
             raise LayaUnavailable("incomplete local Laya answers")

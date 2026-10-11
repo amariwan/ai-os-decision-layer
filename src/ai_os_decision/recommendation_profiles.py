@@ -24,7 +24,7 @@ def _choice(key, instructions, options):
 def build_profile(profile: str, request: dict) -> ProfilePlan:
     c = request['context']
     state = DecisionState(text=request['text'], environment=request['environment'], actor_type='',
-                          extra={'profile_context': c, '_require_full_context': True})
+                          extra={'profile_context': c, 'task_text': request['text'], '_require_full_context': True})
     questions, fallback, review, skip = [], {}, False, None
     if profile == 'model-routing':
         eligible = sorted((x for x in c['candidates'] if x['available'] and x['capable']
