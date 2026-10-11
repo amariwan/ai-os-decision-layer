@@ -169,6 +169,10 @@ this CLI does not claim a Brain connection from configuration alone.
 
 ## Known limitations
 
+Automatic model selection through local Laya and the existing gateway is
+available via `system-one --backend freellm --model auto`.
+See [AUTO setup, boundaries and live verification](docs/auto-model-routing.md).
+
 - The 30-case system-one corpus and 12-case provider-intel set are synthetic
   and tiny: not proof of task completion, calibration, precision/recall,
   error rates, or savings. See [benchmark report](docs/benchmark-report.md).

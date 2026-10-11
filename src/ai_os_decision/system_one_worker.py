@@ -141,23 +141,34 @@ def _answers_from_values(values, questions):
 
 
 def _loopback(base_url):
-    from urllib.parse import urlparse
-    parts = urlparse(base_url or "")
-    if parts.scheme != "http" or parts.hostname not in ("127.0.0.1", "localhost"):
-        raise ValueError("cloud gateway must be a loopback URL")
-    return base_url.rstrip("/")
+    from ai_os_decision.gateway_credentials import normalize_gateway_url
+    return normalize_gateway_url(base_url)
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _gateway_open(req, timeout):
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect()).open(req, timeout=timeout)
 
 
 def cloud_json(base_url, path, payload=None, timeout=10):
-    """Bounded FreeLLMAPI call. The bearer key comes from the environment only.
+    """Bounded FreeLLMAPI call. Credentials come from env or macOS Keychain.
 
     Returns (parsed_json, headers). Transport failures are returned as data,
     never raised with key material: {"transport_error": {"type": ...}}.
     """
-    import os
     import urllib.error
+    from ai_os_decision.gateway_credentials import gateway_key
     base = _loopback(base_url)
-    key = os.environ.get("FREELLMAPI_KEY", "")
+    if path not in {"/v1/models", "/v1/chat/completions"}:
+        raise ValueError("unsupported gateway endpoint")
+    try:
+        key = gateway_key()
+    except Exception:
+        return {"transport_error": {"type": "credentials_unavailable"}}, {}
     if not key:
         return {"transport_error": {"type": "missing_credentials"}}, {}
     data = json.dumps(payload, allow_nan=False).encode() if payload is not None else None
@@ -165,7 +176,7 @@ def cloud_json(base_url, path, payload=None, timeout=10):
                                  headers={"Authorization": "Bearer " + key,
                                           "Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
+        with _gateway_open(req, timeout=timeout) as response:
             body = response.read(262145)
             headers = dict(response.headers)
     except urllib.error.HTTPError as e:
@@ -246,6 +257,17 @@ def freellm(payload):
     measurement = {}
     if missing:
         measurement["usage_missing"] = True
+    # Billed-cost evidence for AUTO_FREE (bounded numbers only; absent fields
+    # stay absent so the caller fails closed on missing free evidence).
+    if type(usage.get("cost")) in (int, float) and math.isfinite(usage["cost"]) and usage["cost"] >= 0:
+        measurement["cost"] = usage["cost"]
+    details = usage.get("cost_details")
+    if isinstance(details, dict):
+        upstream = details.get("upstream_inference_cost")
+        if type(upstream) in (int, float) and math.isfinite(upstream) and upstream >= 0:
+            measurement["upstream_cost"] = upstream
+    if type(usage.get("is_byok")) is bool:
+        measurement["is_byok"] = usage["is_byok"]
     for name, key in (("rate_limit_remaining", "x-ratelimit-remaining"),
                       ("rate_limit_limit", "x-ratelimit-limit"),
                       ("retry_after", "retry-after")):

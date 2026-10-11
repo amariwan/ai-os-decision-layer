@@ -39,6 +39,8 @@ laya:
   subfolder: null
 
 freellm:
+  auto_enabled: false
+  allow_auto_calls: false
   # Cloud escalation is DISABLED by default. Enable only with explicit approval.
   enabled: false
   base_url: "http://127.0.0.1:31415"
@@ -47,7 +49,7 @@ freellm:
   # Empty means any discovered available model; otherwise a strict allowlist
   # (one `- id` item per line, which is the list form the config loader parses).
   allowed_models: []
-  # Bearer key is NEVER stored here: export FREELLMAPI_KEY in the environment.
+  # Bearer key comes from FREELLMAPI_KEY or the ai-os.freellmapi Keychain item.
   quota:
     max_failures: 3
     cooldown: 300

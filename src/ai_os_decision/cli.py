@@ -58,6 +58,7 @@ def main() -> int:
     system_one.add_argument("request", help="trusted local request JSON; never a model-generated inventory")
     system_one.add_argument("--backend", choices=["deterministic", "qwen", "d1", "freellm"], default="deterministic")
     system_one.add_argument("--model")
+    system_one.add_argument("--config", help="local policy and gateway configuration")
     system_one.add_argument("--snapshot")
     system_one.add_argument("--python")
     system_one.add_argument("--approve-d1", action="store_true")
