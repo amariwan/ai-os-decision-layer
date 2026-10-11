@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<9", "ruff>=0.6,<1"]
+dev = ["pytest>=8,<10", "ruff>=0.6,<1"]
 registry-mcp = ["mcp>=2.3,<3"]
 
 [project.scripts]
