@@ -66,15 +66,22 @@ class DecisionEngine:
         return self.gate.route(confidence)
 
     def recommend(self, request, backend=None):
-        """Explicit bounded System-One recommendation; never executes a route.
+        """Non-authoritative bounded recommendation; never executes a route.
 
-        Existing decide()/Laya behavior stays intact. Heavy dependencies are not
-        imported unless an approved d1 worker is explicitly requested.
+        The returned Recommendation may reflect a model observation within
+        monotonic-caution bounds. For the authoritative baseline use
+        observe(request).authoritative. Existing decide()/Laya behavior stays
+        intact. Heavy dependencies are not imported unless an approved d1
+        worker is explicitly requested.
         """
         return self._system_one_runtime(backend).decide(request)
 
     def observe(self, request, backend=None):
-        """Return the deterministic authority separately from a shadow observation."""
+        """Return the deterministic authority separately from a shadow observation.
+
+        The authoritative baseline (SystemOneRuntime.authoritative) can never
+        be overridden by the accompanying model observation.
+        """
         return self._system_one_runtime(backend).shadow(request)
 
     def _system_one_runtime(self, backend):

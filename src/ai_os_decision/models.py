@@ -178,18 +178,8 @@ def _parse_simple_yaml(lines: list[str]) -> dict:
             if content.startswith("- "):
                 if items is None:
                     items = []
-                items.append(_scalar(content[2:].strip()))
-                # nested map inside list item (e.g. "- env: production")?
-                rest = content[2:].strip()
-                if ":" in rest and not rest.startswith('"'):
-                    k, _, v = rest.partition(":")
-                    v = v.strip()
-                    if v == "":
-                        sub, idx = parse_block(idx + 1, cur + 2)
-                        items[-1] = {k.strip(): sub}
-                        continue
-                    items[-1] = {k.strip(): _scalar(v)}
-                idx += 1
+                item, idx = _parse_list_item(lines, idx, cur)
+                items.append(item)
                 continue
             if items is not None:
                 break
@@ -221,28 +211,12 @@ def _parse_simple_yaml(lines: list[str]) -> dict:
                         cc = r2.strip()
                         if not cc.startswith("- "):
                             break
-                        rest2 = cc[2:].strip()
-                        if ":" in rest2 and not rest2.startswith('"'):
-                            k2, _, v2 = rest2.partition(":")
-                            k2 = k2.strip()
-                            v2 = v2.strip()
-                            if v2 == "":
-                                sub, idx = parse_block(idx + 1, c2 + 2)
-                                lst.append({k2: sub})
-                                continue
-                            # inline action list e.g. actions: [deploy, ...]?
-                            lst.append({k2: _scalar(v2)})
+                        item, idx = _parse_list_item(lines, idx, c2)
+                        if isinstance(item, dict):
+                            lst.append({k: _split_inline(v) for k, v in item.items()})
                         else:
-                            lst.append(_scalar(rest2))
-                        idx += 1
-                    # fix inline "[a, b]" scalars kept as strings -> split
-                    fixed = []
-                    for it in lst:
-                        if isinstance(it, dict):
-                            fixed.append({k: _split_inline(v) for k, v in it.items()})
-                        else:
-                            fixed.append(_split_inline(it))
-                    obj[key] = fixed
+                            lst.append(_split_inline(item))
+                    obj[key] = lst
                 else:
                     sub, idx = parse_block(nxt, (len(lines[nxt]) - len(lines[nxt].lstrip(" ")) if nxt < len(lines) else indent + 2))
                     obj[key] = sub
@@ -250,6 +224,98 @@ def _parse_simple_yaml(lines: list[str]) -> dict:
 
     parsed, _ = parse_block(0, 0)
     return parsed
+
+
+def _parse_list_item(lines: list[str], idx: int, indent: int):
+    """Parse one `- ...` item plus its indented continuation lines.
+
+    Multi-key mappings stay a single item instead of silently dropping
+    continuation keys (e.g. `- env: production` + `actions: [...]`).
+    Returns (item, next_idx).
+    """
+    content = lines[idx].strip()[2:].strip()
+    if ":" in content and not content.startswith('"'):
+        k, _, v = content.partition(":")
+        k, v = k.strip(), v.strip()
+        if v == "":
+            sub, idx = _parse_nested_value(lines, idx + 1, indent + 2)
+            item: dict = {k: sub}
+        else:
+            item = {k: _split_inline(_scalar(v))}
+            idx += 1
+        # Merge continuation `key: value` lines belonging to the same item.
+        while idx < len(lines):
+            raw = lines[idx]
+            if not raw.strip() or raw.lstrip().startswith("#"):
+                idx += 1
+                continue
+            cur = len(raw) - len(raw.lstrip(" "))
+            if cur <= indent or raw.strip().startswith("- "):
+                break
+            cont = raw.strip()
+            if ":" not in cont:
+                idx += 1
+                continue
+            ck, _, cv = cont.partition(":")
+            ck, cv = ck.strip(), cv.strip()
+            if cv == "":
+                sub, idx = _parse_nested_value(lines, idx + 1, cur + 2)
+                item[ck] = sub
+            else:
+                item[ck] = _split_inline(_scalar(cv))
+                idx += 1
+        return item, idx
+    idx += 1
+    return _split_inline(_scalar(content)), idx
+
+
+def _parse_nested_value(lines: list[str], idx: int, indent: int):
+    """Parse an indented nested block after an empty `key:` (map or list)."""
+    nxt = idx
+    while nxt < len(lines) and (not lines[nxt].strip() or lines[nxt].lstrip().startswith("#")):
+        nxt += 1
+    if nxt < len(lines) and lines[nxt].strip().startswith("- "):
+        lst: list = []
+        idx = nxt
+        base = len(lines[nxt]) - len(lines[nxt].lstrip(" "))
+        while idx < len(lines):
+            r2 = lines[idx]
+            if not r2.strip() or r2.lstrip().startswith("#"):
+                idx += 1
+                continue
+            c2 = len(r2) - len(r2.lstrip(" "))
+            if c2 < base:
+                break
+            if not r2.strip().startswith("- "):
+                break
+            item, idx = _parse_list_item(lines, idx, c2)
+            lst.append(item)
+        return lst, idx
+    # Re-parse a nested map with a minimal recursive descent.
+    obj: dict = {}
+    while nxt < len(lines):
+        raw = lines[nxt]
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            nxt += 1
+            continue
+        cur = len(raw) - len(raw.lstrip(" "))
+        if cur < indent:
+            break
+        if cur > indent:
+            nxt += 1
+            continue
+        content = raw.strip()
+        if content.startswith("- ") or ":" not in content:
+            break
+        key, _, rest = content.partition(":")
+        key, rest = key.strip(), rest.strip()
+        if rest != "":
+            obj[key] = _scalar(rest)
+            nxt += 1
+        else:
+            sub, nxt = _parse_nested_value(lines, nxt + 1, cur + 2)
+            obj[key] = sub
+    return obj, nxt
 
 
 def _split_inline(v):

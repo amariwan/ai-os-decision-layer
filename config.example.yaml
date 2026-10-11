@@ -21,8 +21,12 @@ policy:
     - "rm -rf /"
     - "rm -rf /*"
   approval_required:
+    # Each entry needs BOTH keys; incomplete rules are rejected at startup
+    # (fail closed) instead of silently weakening the policy.
     - env: production
       actions: [deploy, delete, drop, migrate]
+  # fail_closed defaults to true and must stay a boolean; invalid policy
+  # config raises instead of running with weakened gates.
   fail_closed: true
 
 observability:

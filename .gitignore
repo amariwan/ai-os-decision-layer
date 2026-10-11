@@ -1,8 +1,10 @@
 .venv/
+config.local.yaml
 __pycache__/
 .pytest_cache/
 .ruff_cache/
 .projectatlas/
+.DS_Store
 # Local workflow-library data (upstream snapshots, registries; never commit).
 data/
 data/workflow-library/

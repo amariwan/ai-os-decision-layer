@@ -3,13 +3,27 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 
-from ai_os_decision.laya_engine import LayaDecisionEngine
+from ai_os_decision.laya_engine import IsolatedLayaDecisionEngine
 from ai_os_decision.models import DecisionAnswer, DecisionQuestion, DecisionResult, DecisionState
 from ai_os_decision.policy import PolicyEngine
+
+# Shared bounded pool for shadow observations. Timeouts on in-process
+# inference cannot abort the underlying thread (CPython has no thread kill),
+# so a shared pool — not per-call executors — bounds how many observations
+# can linger: at most SHADOW_MAX_WORKERS reusable worker threads, and at most
+# that many concurrent shadow inferences via _SHADOW_SLOTS.
+# The main path never waits longer than timeout_ms; a timed-out observation is
+# discarded and reported as fallback. Process-local: not shared across
+# processes or hosts.
+SHADOW_MAX_WORKERS = 2
+_SHADOW_POOL = ThreadPoolExecutor(max_workers=SHADOW_MAX_WORKERS,
+                                  thread_name_prefix="ai-os-shadow")
+_SHADOW_SLOTS = threading.BoundedSemaphore(SHADOW_MAX_WORKERS)
 
 
 SHADOW_QUESTIONS = [
@@ -49,7 +63,7 @@ class ShadowRuntime:
     """Run baseline as authority and Laya as an optional, isolated observer."""
 
     def __init__(self, model_dir: str | None = None, timeout_ms: int = 150, config: dict | None = None):
-        self.laya = LayaDecisionEngine(model_dir, timeout_ms)
+        self.laya = IsolatedLayaDecisionEngine(model_dir, timeout_ms)
         self.timeout_ms = timeout_ms
         self.policy = PolicyEngine(config or {})
 
@@ -71,12 +85,23 @@ class ShadowRuntime:
         fallback_used = False
         provider = "laya"
         try:
-            pool = ThreadPoolExecutor(max_workers=1)
-            future = pool.submit(self.laya.decide, state, SHADOW_QUESTIONS)
+            # Concurrency bound: refuse (fail closed to baseline) instead of
+            # queueing unbounded shadow work behind stuck inferences.
+            if not _SHADOW_SLOTS.acquire(blocking=False):
+                raise RuntimeError("shadow-overloaded")
+            try:
+                future = _SHADOW_POOL.submit(self.laya.decide, state, SHADOW_QUESTIONS)
+            except Exception:
+                _SHADOW_SLOTS.release()
+                raise
+            # A timeout does not end a running Future. Keep its slot until
+            # completion/cancellation so repeated timeouts cannot fill the queue.
+            future.add_done_callback(lambda _: _SHADOW_SLOTS.release())
             try:
                 laya_result = future.result(timeout=self.timeout_ms / 1000)
-            finally:
-                pool.shutdown(wait=False, cancel_futures=True)
+            except TimeoutError:
+                future.cancel()
+                raise
             for q in SHADOW_QUESTIONS:
                 answer = laya_result.answers[q.id]
                 shadow[q.id].update(

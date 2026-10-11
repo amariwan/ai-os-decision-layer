@@ -146,7 +146,8 @@ def run_cli(args):
             backend = FreeLLMBackend(args.model or "", req.inventory,
                                      base_url=fcfg.get("base_url"),
                                      json_mode=(args.model or "") in json_ok, quota=quota,
-                                     enabled=True, approved=True)
+                                     enabled=True, approved=True,
+                                     allow_private=fcfg.get("allow_private", False))
     observed = DecisionEngine(config).observe(req, backend)
     out = {"authoritative": asdict(observed.authoritative),
            "shadow": asdict(observed.observation),

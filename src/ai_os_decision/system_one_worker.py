@@ -200,6 +200,14 @@ def cloud_json(base_url, path, payload=None, timeout=10):
 def freellm(payload):
     if payload.get("images"):
         raise ValueError("cloud text baseline does not evaluate visual fixtures")
+    # Transport-boundary allowlist, enforced again inside the worker so a
+    # directly-invoked worker never forwards unlisted state/extra/metadata.
+    from ai_os_decision.system_one_backends import validate_cloud_payload
+    allow_private = payload.get("allow_private", False)
+    if type(allow_private) is not bool:
+        raise ValueError("allow_private must be a boolean")
+    validate_cloud_payload({"state": payload.get("state"), "questions": payload.get("questions")},
+                           allow_private=allow_private, model=payload["model"])
     body = {"model": payload["model"], "temperature": 0, "max_tokens": 512,
             "messages": [
                 {"role": "system", "content": (

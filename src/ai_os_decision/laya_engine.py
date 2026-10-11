@@ -9,6 +9,8 @@ import os
 import sys
 import time
 import uuid
+from dataclasses import asdict
+from pathlib import Path
 
 from ai_os_decision.models import DecisionAnswer, DecisionQuestion, DecisionResult, DecisionState
 
@@ -103,3 +105,33 @@ class LayaDecisionEngine:
         except LayaUnavailable:
             return "unavailable"
         return "healthy"
+
+
+class IsolatedLayaDecisionEngine(LayaDecisionEngine):
+    """Local checkpoint inference with a real deadline and no resident model.
+
+    Reuses the existing bounded worker launcher. The legacy in-process adapter
+    remains available to library callers, while CLI/shadow calls use isolation.
+    """
+
+    def decide(self, state: DecisionState, questions: list[DecisionQuestion]) -> DecisionResult:
+        from ai_os_decision.system_one_backends import run_worker
+        if not Path(self.model_dir, "rl_agent_api.py").is_file():
+            raise LayaUnavailable("local Laya checkpoint adapter not configured")
+        raw = run_worker(sys.executable, ["-m", "ai_os_decision.laya_worker"],
+                         {"model_dir": str(Path(self.model_dir).resolve()), "state": asdict(state),
+                          "questions": [asdict(q) for q in questions]}, self.timeout_ms / 1000)
+        answers = {key: DecisionAnswer(**value) for key, value in raw.pop("answers").items()}
+        if set(answers) != {q.id for q in questions}:
+            raise LayaUnavailable("incomplete local Laya answers")
+        for q in questions:
+            if q.kind == "choice" and answers[q.id].value not in q.options:
+                raise LayaUnavailable("local Laya returned an unknown choice")
+        return DecisionResult(answers=answers, **raw)
+
+    def health(self) -> str:
+        # Deadline/worker failures are availability failures, never health proof.
+        try:
+            return super().health()
+        except Exception:
+            return "unavailable"

@@ -277,19 +277,35 @@ def privacy_screen(text, *, allow_private=False):
 
 
 class QuotaTracker:
-    """In-memory cloud circuit breaker. No persistence, no background threads."""
+    """In-memory cloud circuit breaker. No persistence, no background threads.
 
-    def __init__(self, max_failures=3, cooldown=300):
+    States: CLOSED (requests flow) -> OPEN (cooling down, requests refused)
+    -> HALF_OPEN (cooldown elapsed, exactly one probe request allowed).
+    A successful probe closes the circuit; a failed probe re-opens it.
+
+    Time comes from a monotonic clock (injectable via `clock` for tests), so
+    wall-clock jumps never open, close, or shorten the cooldown. Quotas are
+    process-local: each process tracks its own failures; limits are not
+    shared across processes, workers, or hosts.
+    """
+
+    CLOSED, OPEN, HALF_OPEN = "closed", "open", "half-open"
+
+    def __init__(self, max_failures=3, cooldown=300, *, clock=None):
+        import time
         self.max_failures = max(1, int(max_failures))
         self.cooldown = max(1.0, min(float(cooldown), 3600.0))
         self.failures = 0
         self.cool_until = 0.0
+        self._clock = clock or time.monotonic
+        self._state = self.CLOSED
+        self._probe_available = False
 
     def record(self, err):
-        import time
         kind = err.get("type") if isinstance(err, dict) else None
         if kind == "ok":
             self.failures, self.cool_until = 0, 0.0
+            self._state, self._probe_available = self.CLOSED, False
             return
         self.failures += 1
         if kind == "rate_limited" and isinstance(err, dict):
@@ -297,27 +313,48 @@ class QuotaTracker:
                 wait = max(1.0, min(float(err.get("retry_after") or self.cooldown), 3600.0))
             except (TypeError, ValueError):
                 wait = self.cooldown
-            self.cool_until = max(self.cool_until, time.time() + wait)
+            self.cool_until = max(self.cool_until, self._clock() + wait)
+            self._state, self._probe_available = self.OPEN, False
         elif self.failures >= self.max_failures:
-            self.cool_until = max(self.cool_until, time.time() + self.cooldown)
+            self.cool_until = max(self.cool_until, self._clock() + self.cooldown)
+            self._state, self._probe_available = self.OPEN, False
+        elif self._state == self.HALF_OPEN:
+            # A failed probe re-opens the circuit for a full cooldown.
+            self.cool_until = max(self.cool_until, self._clock() + self.cooldown)
+            self._state, self._probe_available = self.OPEN, False
 
     def allow(self):
-        import time
-        if time.time() < self.cool_until:
+        now = self._clock()
+        if self._state == self.CLOSED:
+            return self.failures < self.max_failures
+        if now < self.cool_until:
             return False
-        return self.failures < self.max_failures
+        # Cooldown elapsed: exactly one probe request, then back to waiting
+        # for its outcome.
+        self._state = self.HALF_OPEN
+        if self._probe_available:
+            return False
+        self._probe_available = True
+        return True
 
     def state(self):
+        # Observing readiness must never reserve the single recovery probe.
+        state = self._state
+        if state == self.OPEN and self._clock() >= self.cool_until:
+            state = self.HALF_OPEN
         return {"consecutive_failures": self.failures, "cool_until": self.cool_until,
-                "open": not self.allow()}
+                "open": state != self.CLOSED, "state": state}
 
 
 def cloud_eligible(request, config, quota=None, model=None):
     """Gate cloud escalation: disabled by default, privacy-screened, quota-aware."""
     cfg = (config or {}).get("freellm", {}) or {}
+    if not isinstance(cfg, dict) or any(type(cfg.get(key, False)) is not bool
+                                       for key in ("enabled", "allow_private")):
+        return {"allowed": False, "reason": "invalid-cloud-config"}
     if not cfg.get("enabled"):
         return {"allowed": False, "reason": "cloud-disabled"}
-    screen = privacy_screen(request.state.text, allow_private=bool(cfg.get("allow_private")))
+    screen = privacy_screen(request.state.text, allow_private=cfg.get("allow_private", False))
     if not screen["allowed"]:
         return {"allowed": False, "reason": screen["reason"]}
     allowed = cfg.get("allowed_models") or []
@@ -332,13 +369,57 @@ def cloud_eligible(request, config, quota=None, model=None):
 
 
 class SystemOneRuntime:
-    """Recommendation-only extension used by DecisionEngine. No active routing mode."""
+    """Recommendation-only extension used by DecisionEngine. No active routing mode.
+
+    Authority contract: the ONLY authoritative result is produced by
+    authoritative() — deterministic fallback + trusted policy envelope, no
+    model input. decide()/recommend() return a non-authoritative
+    Recommendation that a model backend may have influenced within
+    monotonic-caution bounds (risk/approval can only increase, required
+    answers always win); shadow() pairs the authoritative baseline with such
+    an observation. No shadow/advisory API can override the baseline.
+    """
     def __init__(self, backend: Backend | None = None, config: dict | None = None, cache_size=128):
         self.backend = backend or DeterministicFallback()
         self.fallback = DeterministicFallback()
         self.policy = PolicyEngine(config or {})
         self.cache_size = max(0, min(cache_size, 128))
         self._cache = {}
+
+    def authoritative(self, req: BoundedRequest) -> Recommendation:
+        """The single deterministic authority: no backend, no model input."""
+        req.validate()
+        started = time.perf_counter()
+        pol = self.policy.check(req.state.text, req.state.environment, req.action)
+        denied = req.denied or pol["denied"]
+        protected = req.action not in SAFE_ACTIONS
+        approval = bool(denied or protected or req.approval_required or pol["approval_required"])
+        floor = max(RISKS.index(req.minimum_risk), 2 if approval else 0)
+        answers, usage = validate_native(req, self.fallback.infer(req))
+        answers, risk, approval = self._settle(req, answers, approval, floor)
+        result = Recommendation(answers, self.fallback.name, risk, approval, denied, False,
+                                tuple(k for k, a in answers.items() if a.confidence < .7),
+                                (time.perf_counter()-started)*1000, dict(usage), None,
+                                "deterministic-encoding-not-statistical-confidence", {})
+        result.application_contract(req.inventory)
+        return result
+
+    @staticmethod
+    def _settle(req, answers, approval, floor):
+        """Apply the authority envelope: required answers win, caution is monotonic."""
+        # Copy before enforcing requirements: cached data must not be mutable output.
+        answers = {k: DecisionAnswer(a.question_id, a.kind, a.value, a.confidence, dict(a.probabilities))
+                   for k, a in answers.items()}
+        for q in req.questions:
+            if q.id in req.required_answers:
+                answers[q.id] = validate_native(req, DeterministicFallback().infer(req))[0][q.id]
+        model_risk = answers.get("risk")
+        if model_risk and isinstance(model_risk.value, str) and model_risk.value in RISKS:
+            floor = max(floor, RISKS.index(model_risk.value))
+        # A recommendation may increase caution, never decrease it.
+        model_approval = answers.get("requires_human_approval")
+        approval = approval or bool(model_approval and model_approval.value is True)
+        return answers, RISKS[floor], approval
 
     def decide(self, req: BoundedRequest):
         req.validate()
@@ -378,31 +459,23 @@ class SystemOneRuntime:
         except Exception as exc:
             answers, usage = validate_native(req, self.fallback.infer(req))
             fallback, source, error = True, self.fallback.name, type(exc).__name__
-        # Copy before enforcing requirements: cached data must not be mutable output.
-        answers = {k: DecisionAnswer(a.question_id, a.kind, a.value, a.confidence, dict(a.probabilities))
-                   for k, a in answers.items()}
-        for q in req.questions:
-            if q.id in req.required_answers:
-                answers[q.id] = validate_native(req, self.fallback.infer(req))[0][q.id]
-        model_risk = answers.get("risk")
-        if model_risk and isinstance(model_risk.value, str) and model_risk.value in RISKS:
-            floor = max(floor, RISKS.index(model_risk.value))
-        # A recommendation may increase caution, never decrease it.
-        model_approval = answers.get("requires_human_approval")
-        approval = approval or bool(model_approval and model_approval.value is True)
+        # Authority envelope: required answers win, caution only increases.
+        # The model-influenced values below are a non-authoritative observation;
+        # compare shadow().authoritative for the deterministic baseline.
+        answers, risk, approval = self._settle(req, answers, approval, floor)
         uncertainty = tuple(k for k, a in answers.items() if a.confidence < .7 or source == "qwen")
         semantics = {"qwen": "synthetic-encoding-not-model-confidence",
                      "liquid-d1": "native-distribution-not-task-calibrated"}.get(
                          source, "deterministic-encoding-not-statistical-confidence")
-        result = Recommendation(answers, source, RISKS[floor], approval, denied, fallback, uncertainty,
+        result = Recommendation(answers, source, risk, approval, denied, fallback, uncertainty,
                                 (time.perf_counter()-started)*1000, dict(usage), error, semantics, measurement)
         result.application_contract(req.inventory)
         return result
 
     def shadow(self, req):
-        baseline = SystemOneRuntime(config={"policy": {"deny_patterns": self.policy.deny_patterns,
-                                   "approval_required": self.policy.approval_required}}).decide(req)
-        return ShadowObservation(baseline, self.decide(req))
+        # The baseline IS the single deterministic authority (full policy,
+        # including fail_closed/version) — never a model-influenced result.
+        return ShadowObservation(self.authoritative(req), self.decide(req))
 
 
 # Kept here as the public interface; optional inference dependencies stay in a worker.
