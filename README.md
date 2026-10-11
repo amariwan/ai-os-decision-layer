@@ -1,5 +1,7 @@
 # AI OS Decision Layer
 
+[![CI](https://github.com/amariwan/ai-os-decision-layer/actions/workflows/ci.yml/badge.svg)](https://github.com/amariwan/ai-os-decision-layer/actions/workflows/ci.yml)
+
 Deterministic-first local decision host with optional model backends in
 **shadow/advisory mode only**. The deterministic rule baseline is authoritative:
 no model recommendation can change a route, execute tools, weaken policy, or
